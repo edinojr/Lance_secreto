@@ -21,6 +21,7 @@ export default function MesaClientePage() {
   const [categoriaAtiva, setCategoriaAtiva] = useState<'lanches' | 'pratos' | 'porcoes' | 'bebidas' | 'sobremesas'>('lanches');
   const [itensCardapio, setItensCardapio] = useState<CardapioItem[]>([]);
   const [pedidoEnviado, setPedidoEnviado] = useState(false);
+  const [meusPedidos, setMeusPedidos] = useState<any[]>([]);
 
   // Máscaras de entrada
   const maskCPF = (v: string) => v.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
@@ -60,6 +61,33 @@ export default function MesaClientePage() {
     }
     autoCheckin();
   }, []);
+
+  // Monitorar Meus Pedidos
+  useEffect(() => {
+    if (!comandaId) return;
+
+    const carregarPedidos = async () => {
+      const { data } = await supabase
+        .from('pedidos_itens')
+        .select(`id, quantidade, status, preco_unitario, cardapio_itens(nome)`)
+        .eq('comanda_mesa_id', comandaId)
+        .order('solicitado_em', { ascending: false });
+      if (data) setMeusPedidos(data);
+    };
+
+    carregarPedidos();
+
+    const canal = supabase
+      .channel(`cliente-pedidos-${comandaId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_itens', filter: `comanda_mesa_id=eq.${comandaId}` }, () => {
+        carregarPedidos();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(canal);
+    };
+  }, [comandaId]);
 
   // Isola a lógica de buscar a comanda para poder reaproveitar
   const buscarOuCriarComanda = async (clienteId: string) => {
@@ -206,8 +234,37 @@ export default function MesaClientePage() {
         )}
       </header>
 
+      {/* Meus Pedidos / Minha Comanda */}
+      {cliente && meusPedidos.length > 0 && (
+        <div className="bg-[#8B261E] text-white px-4 py-3 shadow-md">
+          <div className="flex justify-between items-center mb-2">
+            <h3 className="font-bold text-sm flex items-center gap-1.5"><ShoppingBag className="w-4 h-4"/> Minha Comanda</h3>
+            <span className="font-black">
+              R$ {meusPedidos.reduce((acc, p) => acc + (p.quantidade * p.preco_unitario), 0).toFixed(2).replace('.', ',')}
+            </span>
+          </div>
+          <div className="space-y-2 max-h-32 overflow-y-auto pr-1 no-scrollbar">
+            {meusPedidos.map(p => (
+              <div key={p.id} className="flex justify-between items-center text-xs bg-white/10 p-2 rounded-lg">
+                <div className="flex-1 truncate pr-2">
+                  <span className="font-bold text-amber-400">{p.quantidade}x</span> {p.cardapio_itens?.nome}
+                </div>
+                <div className={`px-2 py-1 rounded-md font-bold text-[9px] uppercase tracking-wider ${
+                  p.status === 'aguardando' ? 'bg-amber-500/20 text-amber-300' :
+                  p.status === 'em_preparo' ? 'bg-orange-500/30 text-orange-300' :
+                  p.status === 'pronto' ? 'bg-emerald-500/30 text-emerald-300' :
+                  p.status === 'servido' ? 'bg-blue-500/30 text-blue-300' : 'bg-gray-500/30 text-gray-300'
+                }`}>
+                  {p.status.replace('_', ' ')}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Navegação por Categorias */}
-      <div className="flex overflow-x-auto no-scrollbar gap-2 bg-white/80 backdrop-blur border-b border-[#EADBCE] p-3 sticky top-[57px] z-20">
+      <div className={`flex overflow-x-auto no-scrollbar gap-2 bg-white/80 backdrop-blur border-b border-[#EADBCE] p-3 sticky z-20 ${cliente && meusPedidos.length > 0 ? 'top-[57px]' : 'top-[57px]'}`}>
         {(['lanches', 'pratos', 'porcoes', 'bebidas', 'sobremesas'] as const).map((cat) => (
           <button
             key={cat}

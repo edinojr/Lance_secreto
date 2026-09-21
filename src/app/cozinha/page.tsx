@@ -13,7 +13,7 @@ export default function CozinhaPage() {
       .select(`
         id, quantidade, observacoes, status, solicitado_em, destino,
         clientes (nome),
-        cardapio_itens (nome),
+        cardapio_itens (nome, imagem_url),
         comandas_mesa (mesas (numero))
       `)
       .eq('destino', 'cozinha')
@@ -75,8 +75,14 @@ export default function CozinhaPage() {
                 </span>
                 <span className="text-xs text-zinc-400 font-medium">{pedido.clientes?.nome}</span>
               </div>
-              <div className="text-base font-semibold text-white mb-2">
-                {pedido.quantidade}x {pedido.cardapio_itens?.nome}
+              
+              <div className="flex gap-3 items-center mb-2">
+                {pedido.cardapio_itens?.imagem_url && (
+                  <img src={pedido.cardapio_itens.imagem_url} alt="Prato" className="w-16 h-16 rounded-md object-cover shadow-md" />
+                )}
+                <div className="text-base font-semibold text-white">
+                  <span className="text-amber-500 font-black">{pedido.quantidade}x</span> {pedido.cardapio_itens?.nome}
+                </div>
               </div>
             </div>
 
