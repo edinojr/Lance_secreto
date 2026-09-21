@@ -12,6 +12,7 @@ export default function GarcomPage() {
   const [mesasAtivas, setMesasAtivas] = useState<number[]>([]);
   const [mesaSelecionada, setMesaSelecionada] = useState<number | null>(null);
   const [pedidosMesaSelecionada, setPedidosMesaSelecionada] = useState<any[]>([]);
+  const [incluirTaxa, setIncluirTaxa] = useState(true);
 
   const carregarDados = async () => {
     // 1. Carrega itens prontos para entregar ou bebidas novas
@@ -55,6 +56,7 @@ export default function GarcomPage() {
     if (data) {
       setPedidosMesaSelecionada(data);
       setMesaSelecionada(numero);
+      setIncluirTaxa(true); // Reseta para sempre incluir por padrão ao abrir
     }
   };
 
@@ -91,7 +93,7 @@ export default function GarcomPage() {
 
   const clientesArray = Object.values(clientesMap);
   const consumoPendente = clientesArray.filter((c: any) => !c.pago).reduce((acc: number, c: any) => acc + c.subtotal, 0);
-  const taxaServicoPendente = consumoPendente * 0.10;
+  const taxaServicoPendente = incluirTaxa ? consumoPendente * 0.10 : 0;
   const totalMesaPagar = consumoPendente + taxaServicoPendente;
 
   return (
@@ -219,8 +221,16 @@ export default function GarcomPage() {
                 <span>Subtotal Restante:</span>
                 <span>R$ {consumoPendente.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-zinc-500">
-                <span>Taxa de Serviço (10%):</span>
+              <div className="flex justify-between items-center text-zinc-500 py-1">
+                <label className="flex items-center gap-2 cursor-pointer hover:text-zinc-700 transition">
+                  <input 
+                    type="checkbox" 
+                    checked={incluirTaxa} 
+                    onChange={(e) => setIncluirTaxa(e.target.checked)} 
+                    className="w-4 h-4 rounded text-[#8B261E] focus:ring-[#8B261E]"
+                  />
+                  <span>Taxa de Serviço (10%):</span>
+                </label>
                 <span>R$ {taxaServicoPendente.toFixed(2)}</span>
               </div>
               <div className="flex justify-between font-black text-base pt-2 border-t border-zinc-200">

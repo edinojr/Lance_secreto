@@ -356,12 +356,13 @@ export default function MesaClientePage() {
           <div className="px-4 py-3 flex justify-between items-center border-b border-white/10">
             <div>
               <h3 className="font-bold text-sm flex items-center gap-1.5 mb-0.5"><ShoppingBag className="w-4 h-4"/> Minha Comanda</h3>
-              <p className="text-[10px] text-white/70">
-                Subtotal: R$ {meusPedidos.reduce((acc, p) => acc + (p.quantidade * p.preco_unitario), 0).toFixed(2).replace('.', ',')} + 10% de taxa
+              <p className="text-[10px] text-white/70 leading-tight">
+                Subtotal: R$ {meusPedidos.reduce((acc, p) => acc + (p.quantidade * p.preco_unitario), 0).toFixed(2).replace('.', ',')}<br/>
+                <span className="font-bold text-amber-300">+ 10% taxa de serviço (opcional)</span>
               </p>
             </div>
             <div className="text-right">
-              <span className="text-[9px] uppercase text-white/70 font-bold tracking-wider block leading-none mb-0.5">Total a Pagar</span>
+              <span className="text-[9px] uppercase text-white/70 font-bold tracking-wider block leading-none mb-0.5">Sugestão Total</span>
               <span className="font-black text-lg leading-none text-emerald-300">
                 R$ {(meusPedidos.reduce((acc, p) => acc + (p.quantidade * p.preco_unitario), 0) * 1.1).toFixed(2).replace('.', ',')}
               </span>
