@@ -17,15 +17,50 @@ export default function MesaClientePage() {
   const [cpf, setCpf] = useState('');
   const [whatsapp, setWhatsapp] = useState('');
 
-  // Estado do Cardápio e Pedido
+  // Estado do Cardápio, Pedido e Customização
   const [categoriaAtiva, setCategoriaAtiva] = useState<'lanches' | 'pratos' | 'porcoes' | 'bebidas' | 'sobremesas'>('lanches');
   const [itensCardapio, setItensCardapio] = useState<CardapioItem[]>([]);
   const [pedidoEnviado, setPedidoEnviado] = useState(false);
   const [meusPedidos, setMeusPedidos] = useState<any[]>([]);
 
-  // Máscaras de entrada
-  const maskCPF = (v: string) => v.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
-  const maskPhone = (v: string) => v.replace(/\D/g, '').replace(/^(\d{2})(\d)/g, '($1) $2').replace(/(\d)(\d{4})$/, '$1-$2');
+  // Configuração do Item (Modal)
+  const [itemSelecionado, setItemSelecionado] = useState<CardapioItem | null>(null);
+  const [observacaoItem, setObservacaoItem] = useState('');
+  const [adicionaisSelecionados, setAdicionaisSelecionados] = useState<{ [nome: string]: number }>({});
+  
+  const ADICIONAIS_POR_CATEGORIA: Record<string, { nome: string; preco: number }[]> = {
+    lanches: [
+      { nome: 'Carne Extra (150g)', preco: 10.00 },
+      { nome: 'Queijo Extra', preco: 4.00 },
+      { nome: 'Bacon Extra', preco: 6.00 },
+      { nome: 'Ovo Frito', preco: 3.00 }
+    ],
+    bebidas: [
+      { nome: 'Gelo e Limão', preco: 0.00 },
+      { nome: 'Só Gelo', preco: 0.00 },
+      { nome: 'Só Limão', preco: 0.00 }
+    ],
+    pratos: [
+      { nome: 'Ovo Frito Extra', preco: 3.00 },
+      { nome: 'Batata Frita Extra', preco: 8.00 },
+      { nome: 'Arroz Extra', preco: 5.00 }
+    ],
+    porcoes: [
+      { nome: 'Cheddar Extra', preco: 8.00 },
+      { nome: 'Bacon Extra', preco: 6.00 }
+    ],
+    sobremesas: [
+      { nome: 'Calda de Chocolate Extra', preco: 3.00 },
+      { nome: 'Calda de Morango Extra', preco: 3.00 }
+    ]
+  };
+
+  const calcularTotalItem = () => {
+    if (!itemSelecionado) return 0;
+    const opcionais = ADICIONAIS_POR_CATEGORIA[itemSelecionado.categoria] || [];
+    const totalAdicionais = opcionais.reduce((acc, adic) => acc + (adic.preco * (adicionaisSelecionados[adic.nome] || 0)), 0);
+    return itemSelecionado.preco + totalAdicionais;
+  };
 
   // Carregar Cardápio
   useEffect(() => {
@@ -35,7 +70,6 @@ export default function MesaClientePage() {
     }
     carregarCardapio();
 
-    // Recupera dados salvos localmente (Lembra o dispositivo do cliente)
     async function autoCheckin() {
       const local = localStorage.getItem('jao_kim_customer');
       if (local) {
@@ -43,15 +77,8 @@ export default function MesaClientePage() {
         setNome(u.nome);
         setCpf(u.cpf || '');
         setWhatsapp(u.whatsapp || '');
-        
-        // Faz o check-in silencioso para clientes que já escanearam antes
         if (u.nome) {
-          const { data: clienteData } = await supabase
-            .from('clientes')
-            .upsert({ nome: u.nome, cpf: u.cpf, whatsapp: u.whatsapp }, { onConflict: 'cpf' })
-            .select()
-            .single();
-
+          const { data: clienteData } = await supabase.from('clientes').upsert({ nome: u.nome, cpf: u.cpf, whatsapp: u.whatsapp }, { onConflict: 'cpf' }).select().single();
           if (clienteData) {
             setCliente({ id: clienteData.id, nome: clienteData.nome });
             buscarOuCriarComanda(clienteData.id);
@@ -81,8 +108,6 @@ export default function MesaClientePage() {
       .channel(`cliente-pedidos-${comandaId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_itens', filter: `comanda_mesa_id=eq.${comandaId}` }, (payload) => {
         carregarPedidos();
-        
-        // Disparar notificação se o status foi atualizado
         if (payload.eventType === 'UPDATE' && 'Notification' in window && Notification.permission === 'granted') {
           const novoStatus = payload.new.status;
           if (novoStatus === 'em_preparo') {
@@ -99,59 +124,28 @@ export default function MesaClientePage() {
     };
   }, [comandaId]);
 
-  // Isola a lógica de buscar a comanda para poder reaproveitar
   const buscarOuCriarComanda = async (clienteId: string) => {
-    // Busca a mesa. Se não existir, não usamos .single() direto para não dar erro 406
     let { data: mesaData } = await supabase.from('mesas').select('id').eq('numero', parseInt(mesaNumero)).maybeSingle();
-    
-    // Se a mesa não existir no banco, criamos ela automaticamente
     if (!mesaData) {
-      const { data: novaMesa } = await supabase
-        .from('mesas')
-        .insert({ numero: parseInt(mesaNumero) })
-        .select()
-        .single();
+      const { data: novaMesa } = await supabase.from('mesas').insert({ numero: parseInt(mesaNumero) }).select().single();
       mesaData = novaMesa;
     }
-
     if (mesaData) {
-      let { data: comanda } = await supabase
-        .from('comandas_mesa')
-        .select('id')
-        .eq('mesa_id', mesaData.id)
-        .eq('status', 'aberta')
-        .maybeSingle();
-
+      let { data: comanda } = await supabase.from('comandas_mesa').select('id').eq('mesa_id', mesaData.id).eq('status', 'aberta').maybeSingle();
       if (!comanda) {
-        const { data: novaComanda } = await supabase
-          .from('comandas_mesa')
-          .insert({
-            mesa_id: mesaData.id,
-            restaurante_id: 'a0000000-0000-0000-0000-000000000001'
-          })
-          .select()
-          .single();
+        const { data: novaComanda } = await supabase.from('comandas_mesa').insert({ mesa_id: mesaData.id, restaurante_id: 'a0000000-0000-0000-0000-000000000001' }).select().single();
         comanda = novaComanda;
       }
       if (comanda) setComandaId(comanda.id);
     }
   };
 
-  // Processo de Check-in Manual
   const handleCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Solicita permissão para enviar notificações no celular do cliente
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-
-    const { data: clienteData } = await supabase
-      .from('clientes')
-      .upsert({ nome, cpf, whatsapp }, { onConflict: 'cpf' })
-      .select()
-      .single();
-
+    const { data: clienteData } = await supabase.from('clientes').upsert({ nome, cpf, whatsapp }, { onConflict: 'cpf' }).select().single();
     if (clienteData) {
       setCliente({ id: clienteData.id, nome: clienteData.nome });
       localStorage.setItem('jao_kim_customer', JSON.stringify({ nome, cpf, whatsapp }));
@@ -159,21 +153,39 @@ export default function MesaClientePage() {
     }
   };
 
-  // Envio de Pedido com Roteamento Automático
-  const fazerPedido = async (item: CardapioItem) => {
-    if (!comandaId || !cliente) return;
+  const abrirConfigurador = (item: CardapioItem) => {
+    setItemSelecionado(item);
+    setObservacaoItem('');
+    setAdicionaisSelecionados({});
+  };
+
+  const fecharConfigurador = () => {
+    setItemSelecionado(null);
+  };
+
+  const confirmarPedido = async () => {
+    if (!comandaId || !cliente || !itemSelecionado) return;
+
+    // Constrói a string de observações (Ex: "+ 1x Carne, + 2x Queijo | Obs: Sem cebola")
+    const strAdicionais = Object.entries(adicionaisSelecionados)
+      .filter(([_, qty]) => qty > 0)
+      .map(([nome, qty]) => `+ ${qty}x ${nome}`)
+      .join(', ');
+
+    const observacaoFinal = [strAdicionais, observacaoItem ? `Obs: ${observacaoItem}` : ''].filter(Boolean).join(' | ');
 
     await supabase.from('pedidos_itens').insert({
       comanda_mesa_id: comandaId,
       cliente_id: cliente.id,
-      cardapio_item_id: item.id,
+      cardapio_item_id: itemSelecionado.id,
       quantidade: 1,
-      preco_unitario: item.preco,
-      destino: item.destino, // 'cozinha' ou 'bar_garcom'
+      preco_unitario: calcularTotalItem(), // Preço base + opcionais
+      destino: itemSelecionado.destino,
       status: 'aguardando',
-      observacoes: null
+      observacoes: observacaoFinal || null
     });
 
+    fecharConfigurador();
     setPedidoEnviado(true);
     setTimeout(() => setPedidoEnviado(false), 2500);
   };
@@ -233,6 +245,84 @@ export default function MesaClientePage() {
                 Acessar Cardápio
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Configurador de Item (Adicionais e Observações) */}
+      {itemSelecionado && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 sm:p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            {itemSelecionado.imagem_url && (
+              <div className="relative h-48 w-full bg-gray-200 shrink-0">
+                <img src={itemSelecionado.imagem_url} alt={itemSelecionado.nome} className="w-full h-full object-cover" />
+                <button onClick={fecharConfigurador} className="absolute top-4 right-4 bg-black/50 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">X</button>
+              </div>
+            )}
+            
+            <div className="p-5 overflow-y-auto no-scrollbar pb-32">
+              {!itemSelecionado.imagem_url && (
+                <div className="flex justify-between items-start mb-2">
+                  <h2 className="text-xl font-black text-[#8B261E]">{itemSelecionado.nome}</h2>
+                  <button onClick={fecharConfigurador} className="text-gray-400 font-bold">X</button>
+                </div>
+              )}
+              {itemSelecionado.imagem_url && <h2 className="text-xl font-black text-[#8B261E] mb-1">{itemSelecionado.nome}</h2>}
+              <p className="text-sm text-gray-500 mb-6 leading-relaxed">{itemSelecionado.descricao}</p>
+
+              {/* Lista de Adicionais */}
+              {ADICIONAIS_POR_CATEGORIA[itemSelecionado.categoria] && ADICIONAIS_POR_CATEGORIA[itemSelecionado.categoria].length > 0 && (
+                <div className="mb-6">
+                  <h3 className="font-bold text-sm bg-gray-100 p-2 rounded-md uppercase tracking-wider text-gray-700 mb-3">Turbine seu pedido</h3>
+                  <div className="space-y-3">
+                    {ADICIONAIS_POR_CATEGORIA[itemSelecionado.categoria].map((adic) => {
+                      const qty = adicionaisSelecionados[adic.nome] || 0;
+                      return (
+                        <div key={adic.nome} className="flex justify-between items-center border-b border-gray-100 pb-3">
+                          <div>
+                            <span className="font-semibold text-sm text-gray-800 block">{adic.nome}</span>
+                            <span className="text-xs text-[#8B261E] font-bold">{adic.preco > 0 ? `+ R$ ${adic.preco.toFixed(2).replace('.', ',')}` : 'Grátis'}</span>
+                          </div>
+                          <div className="flex items-center gap-3 bg-gray-50 rounded-lg p-1 border border-gray-200">
+                            <button 
+                              onClick={() => setAdicionaisSelecionados(prev => ({ ...prev, [adic.nome]: Math.max(0, qty - 1) }))}
+                              className="w-7 h-7 flex items-center justify-center bg-white rounded-md shadow-sm font-black text-gray-600 active:bg-gray-200"
+                            >-</button>
+                            <span className="font-bold text-sm w-4 text-center">{qty}</span>
+                            <button 
+                              onClick={() => setAdicionaisSelecionados(prev => ({ ...prev, [adic.nome]: qty + 1 }))}
+                              className="w-7 h-7 flex items-center justify-center bg-white rounded-md shadow-sm font-black text-[#8B261E] active:bg-gray-200"
+                            >+</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Observações de preparo */}
+              <div>
+                <h3 className="font-bold text-sm bg-gray-100 p-2 rounded-md uppercase tracking-wider text-gray-700 mb-3">Alguma observação?</h3>
+                <textarea
+                  value={observacaoItem}
+                  onChange={(e) => setObservacaoItem(e.target.value)}
+                  placeholder="Ex: Tirar a cebola, ponto da carne mal passado, copo com gelo..."
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm focus:ring-2 focus:ring-[#8B261E] outline-none min-h-[80px]"
+                />
+              </div>
+            </div>
+
+            {/* Rodapé fixo do Modal */}
+            <div className="absolute bottom-0 left-0 w-full bg-white border-t border-gray-200 p-4 shadow-[0_-10px_20px_rgba(0,0,0,0.05)]">
+              <button
+                onClick={confirmarPedido}
+                className="w-full bg-[#8B261E] text-white font-black py-4 rounded-xl flex justify-between items-center px-6 active:scale-[0.98] transition-transform"
+              >
+                <span>Adicionar</span>
+                <span>R$ {calcularTotalItem().toFixed(2).replace('.', ',')}</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -314,7 +404,7 @@ export default function MesaClientePage() {
                     R$ {item.preco.toFixed(2).replace('.', ',')}
                   </span>
                   <button
-                    onClick={() => fazerPedido(item)}
+                    onClick={() => abrirConfigurador(item)}
                     disabled={!cliente}
                     className={`p-2 rounded-lg transition shadow flex items-center justify-center ${
                       !cliente ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-[#8B261E] hover:bg-[#721f18] text-white'
