@@ -341,14 +341,22 @@ export default function MesaClientePage() {
 
       {/* Meus Pedidos / Minha Comanda */}
       {cliente && meusPedidos.length > 0 && (
-        <div className="bg-[#8B261E] text-white px-4 py-3 shadow-md">
-          <div className="flex justify-between items-center mb-2">
-            <h3 className="font-bold text-sm flex items-center gap-1.5"><ShoppingBag className="w-4 h-4"/> Minha Comanda</h3>
-            <span className="font-black">
-              R$ {meusPedidos.reduce((acc, p) => acc + (p.quantidade * p.preco_unitario), 0).toFixed(2).replace('.', ',')}
-            </span>
+        <div className="bg-[#8B261E] text-white shadow-md flex flex-col">
+          <div className="px-4 py-3 flex justify-between items-center border-b border-white/10">
+            <div>
+              <h3 className="font-bold text-sm flex items-center gap-1.5 mb-0.5"><ShoppingBag className="w-4 h-4"/> Minha Comanda</h3>
+              <p className="text-[10px] text-white/70">
+                Subtotal: R$ {meusPedidos.reduce((acc, p) => acc + (p.quantidade * p.preco_unitario), 0).toFixed(2).replace('.', ',')} + 10% de taxa
+              </p>
+            </div>
+            <div className="text-right">
+              <span className="text-[9px] uppercase text-white/70 font-bold tracking-wider block leading-none mb-0.5">Total a Pagar</span>
+              <span className="font-black text-lg leading-none text-emerald-300">
+                R$ {(meusPedidos.reduce((acc, p) => acc + (p.quantidade * p.preco_unitario), 0) * 1.1).toFixed(2).replace('.', ',')}
+              </span>
+            </div>
           </div>
-          <div className="space-y-2 max-h-32 overflow-y-auto pr-1 no-scrollbar">
+          <div className="space-y-2 max-h-32 overflow-y-auto px-4 py-3 no-scrollbar">
             {meusPedidos.map(p => (
               <div key={p.id} className="flex justify-between items-center text-xs bg-white/10 p-2 rounded-lg">
                 <div className="flex-1 truncate pr-2">
