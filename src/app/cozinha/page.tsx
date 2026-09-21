@@ -7,14 +7,26 @@ import { ChefHat, Clock, CheckCircle2, Flame } from 'lucide-react';
 export default function CozinhaPage() {
   const [pedidos, setPedidos] = useState<any[]>([]);
   const [agora, setAgora] = useState(Date.now());
+  const [avisoAtraso, setAvisoAtraso] = useState(false);
 
-  // Atualiza o relógio a cada 1 minuto para os contadores de tempo
+  // Relógio do Cronômetro (Atualiza a cada segundo)
   useEffect(() => {
     const timer = setInterval(() => {
       setAgora(Date.now());
-    }, 60000);
+    }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Aviso na tela a cada 1 minuto se houver pedidos aguardando
+  useEffect(() => {
+    const alertaTimer = setInterval(() => {
+      if (pedidos.some(p => p.status === 'aguardando')) {
+        setAvisoAtraso(true);
+        setTimeout(() => setAvisoAtraso(false), 5000); // Some após 5s
+      }
+    }, 60000);
+    return () => clearInterval(alertaTimer);
+  }, [pedidos]);
 
   const carregarPedidos = async () => {
     const { data } = await supabase
@@ -53,6 +65,17 @@ export default function CozinhaPage() {
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 p-4 sm:p-6">
+      {/* Aviso de Alerta */}
+      {avisoAtraso && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-rose-950/80 backdrop-blur-sm px-4">
+          <div className="bg-rose-600 text-white p-8 rounded-2xl shadow-2xl flex flex-col items-center animate-bounce">
+            <Flame className="w-16 h-16 mb-4 animate-pulse" />
+            <h2 className="text-3xl font-black text-center uppercase tracking-widest">Atenção!</h2>
+            <p className="text-lg font-bold text-rose-200 mt-2">Existem pedidos aguardando na fila!</p>
+          </div>
+        </div>
+      )}
+
       <header className="flex justify-between items-center border-b border-zinc-800 pb-4 mb-6 sticky top-0 bg-zinc-950 z-10">
         <div className="flex items-center gap-2">
           <ChefHat className="w-8 h-8 text-amber-500" />
@@ -71,7 +94,11 @@ export default function CozinhaPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {pedidos.map((pedido) => {
-          const minutos = Math.floor((agora - new Date(pedido.solicitado_em).getTime()) / 60000);
+          const segundosTotais = Math.floor((agora - new Date(pedido.solicitado_em).getTime()) / 1000);
+          const minutos = Math.floor(segundosTotais / 60);
+          const segundos = segundosTotais % 60;
+          const tempoFormatado = `${minutos.toString().padStart(2, '0')}:${segundos.toString().padStart(2, '0')}`;
+          
           const muitoAtrasado = minutos > 15;
           const statusColors = {
             aguardando: muitoAtrasado ? 'bg-rose-950 border-rose-500/50' : 'bg-zinc-900 border-zinc-800',
@@ -83,13 +110,13 @@ export default function CozinhaPage() {
               key={pedido.id} 
               className={`${statusColors[pedido.status as keyof typeof statusColors]} border rounded-xl p-4 flex flex-col justify-between shadow-lg relative overflow-hidden transition-all`}
             >
-              {/* Temporizador de Fila */}
-              <div className={`absolute top-0 right-0 px-3 py-1 text-xs font-black rounded-bl-lg ${muitoAtrasado && pedido.status === 'aguardando' ? 'bg-rose-600 text-white animate-pulse' : 'bg-zinc-800 text-zinc-400'}`}>
-                {minutos} min
+              {/* Temporizador de Fila (Cronômetro MM:SS) */}
+              <div className={`absolute top-0 right-0 px-3 py-1 font-mono font-black text-sm rounded-bl-lg tracking-wider ${muitoAtrasado && pedido.status === 'aguardando' ? 'bg-rose-600 text-white animate-pulse' : 'bg-zinc-800 text-amber-400'}`}>
+                {tempoFormatado}
               </div>
 
               <div>
-                <div className="flex justify-between items-start border-b border-zinc-800 pb-2 mb-3 pr-10">
+                <div className="flex justify-between items-start border-b border-zinc-800 pb-2 mb-3 pr-16">
                   <span className="text-amber-400 font-bold text-lg leading-none">
                     MESA {pedido.comandas_mesa?.mesas?.numero || '??'}
                   </span>

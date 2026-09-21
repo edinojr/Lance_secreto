@@ -33,9 +33,9 @@ export default function MesaClientePage() {
   const [adicionaisSelecionados, setAdicionaisSelecionados] = useState<{ [nome: string]: number }>({});
   const [agora, setAgora] = useState(Date.now());
 
-  // Atualiza relógio
+  // Atualiza relógio (Cronômetro)
   useEffect(() => {
-    const t = setInterval(() => setAgora(Date.now()), 60000);
+    const t = setInterval(() => setAgora(Date.now()), 1000);
     return () => clearInterval(t);
   }, []);
   
@@ -375,12 +375,15 @@ export default function MesaClientePage() {
           </div>
           <div className="space-y-2 max-h-32 overflow-y-auto px-4 py-3 no-scrollbar">
             {meusPedidos.map(p => {
-              const minutos = Math.floor((agora - new Date(p.solicitado_em).getTime()) / 60000);
+              const segundosTotais = Math.floor((agora - new Date(p.solicitado_em).getTime()) / 1000);
+              const mins = Math.floor(segundosTotais / 60);
+              const secs = segundosTotais % 60;
+              const tempoFormat = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
               return (
                 <div key={p.id} className="flex justify-between items-center text-xs bg-white/10 p-2 rounded-lg">
                   <div className="flex-1 truncate pr-2">
                     <span className="font-bold text-amber-400">{p.quantidade}x</span> {p.cardapio_itens?.nome}
-                    <div className="text-[9px] text-white/50 mt-0.5">Pedido há {minutos} min</div>
+                    <div className="text-[10px] font-mono text-amber-200 mt-0.5 tracking-wider">⏱ {tempoFormat}</div>
                   </div>
                   <div className={`px-2 py-1 rounded-md font-bold text-[9px] uppercase tracking-wider shrink-0 ${
                     p.status === 'aguardando' ? 'bg-amber-500/20 text-amber-300' :
