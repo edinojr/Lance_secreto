@@ -67,7 +67,7 @@ export default function GarcomPage() {
   }, {});
 
   const clientesArray = Object.values(clientesMap);
-  const consumoPendente = clientesArray.filter((c: any) => !c.pago).reduce((acc, c: any) => acc + c.subtotal, 0);
+  const consumoPendente = clientesArray.filter((c: any) => !c.pago).reduce((acc: number, c: any) => acc + c.subtotal, 0);
   const taxaServicoPendente = consumoPendente * 0.10;
   const totalMesaPagar = consumoPendente + taxaServicoPendente;
 
