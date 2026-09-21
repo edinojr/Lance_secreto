@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { QrCode } from 'lucide-react';
+import { ChefHat, QrCode, UtensilsCrossed, Wine, Settings } from 'lucide-react';
 
 export default function Home() {
   const mesas = [1, 2, 3, 4, 5];
@@ -31,6 +31,33 @@ export default function Home() {
               <span className="text-xs text-gray-400 mt-1">Acessar Cardápio</span>
             </Link>
           ))}
+        </div>
+
+        <div className="pt-8 flex gap-4">
+          <Link
+            href="/cozinha"
+            className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition"
+          >
+            <ChefHat className="w-5 h-5" />
+            Cozinha
+          </Link>
+          <Link
+            href="/garcom"
+            className="flex-1 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition"
+          >
+            <Wine className="w-5 h-5" />
+            Garçom
+          </Link>
+        </div>
+
+        <div className="pt-4 flex gap-4">
+          <Link
+            href="/admin"
+            className="w-full bg-zinc-900 border border-zinc-800 hover:border-zinc-600 text-zinc-400 hover:text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 transition"
+          >
+            <Settings className="w-5 h-5" />
+            Painel Gerencial (Estoque)
+          </Link>
         </div>
       </div>
     </main>

@@ -370,7 +370,17 @@ export default function MesaClientePage() {
 
       {/* Navegação por Categorias */}
       <div className={`flex overflow-x-auto no-scrollbar gap-2 bg-white/80 backdrop-blur border-b border-[#EADBCE] p-3 sticky z-20 ${cliente && meusPedidos.length > 0 ? 'top-[57px]' : 'top-[57px]'}`}>
-        {(['lanches', 'pratos', 'porcoes', 'bebidas', 'sobremesas'] as const).map((cat) => (
+        {(['lanches', 'pratos', 'porcoes', 'bebidas', 'sobremesas'] as const)
+          .filter(cat => {
+            if (cat === 'pratos') {
+              const d = new Date();
+              const tempoAtual = d.getHours() + (d.getMinutes() / 60);
+              // Pratos apenas entre 11:00 e 15:30
+              return tempoAtual >= 11 && tempoAtual <= 15.5;
+            }
+            return true;
+          })
+          .map((cat) => (
           <button
             key={cat}
             onClick={() => setCategoriaAtiva(cat)}
