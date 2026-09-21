@@ -104,66 +104,69 @@ export default function MesaClientePage() {
     setTimeout(() => setPedidoEnviado(false), 2500);
   };
 
-  if (!cliente) {
-    return (
-      <div className="min-h-screen bg-[#FDFBF7] flex items-center justify-center p-4 text-[#2C1810]">
-        <div className="w-full max-w-sm bg-white rounded-2xl shadow-xl p-6 border border-[#EADBCE]">
-          <h1 className="text-2xl font-serif font-black text-center text-[#8B261E]">CANTINA DO JÃO KIM</h1>
-          <p className="text-center font-bold text-xs uppercase bg-[#8B261E]/10 text-[#8B261E] py-1 rounded-full mt-2">
-            Mesa {mesaNumero}
-          </p>
-
-          <form onSubmit={handleCheckin} className="mt-6 space-y-4">
-            <div>
-              <label className="text-xs font-bold text-gray-600 uppercase">Seu Nome</label>
-              <input
-                required
-                value={nome}
-                onChange={(e) => setNome(e.target.value)}
-                placeholder="Ex: João da Silva"
-                className="w-full mt-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-[#8B261E] outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-gray-600 uppercase">CPF</label>
-              <input
-                required
-                value={cpf}
-                maxLength={14}
-                onChange={(e) => setCpf(maskCPF(e.target.value))}
-                placeholder="000.000.000-00"
-                className="w-full mt-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-[#8B261E] outline-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-gray-600 uppercase">WhatsApp</label>
-              <input
-                required
-                value={whatsapp}
-                maxLength={15}
-                onChange={(e) => setWhatsapp(maskPhone(e.target.value))}
-                placeholder="(11) 90000-0000"
-                className="w-full mt-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-[#8B261E] outline-none"
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full bg-[#8B261E] hover:bg-[#721f18] text-white font-bold py-3 rounded-xl shadow-lg transition text-sm uppercase tracking-wide mt-2"
-            >
-              Acessar Cardápio
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#FDFBF7] text-[#2C1810] pb-24">
+    <div className="min-h-screen bg-[#FDFBF7] text-[#2C1810] pb-24 relative">
+      {/* Modal de Check-in */}
+      {!cliente && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl p-6 border border-[#EADBCE]">
+            <h1 className="text-2xl font-serif font-black text-center text-[#8B261E]">CANTINA DO JÃO KIM</h1>
+            <p className="text-center font-bold text-xs uppercase bg-[#8B261E]/10 text-[#8B261E] py-1 rounded-full mt-2">
+              Check-in • Mesa {mesaNumero}
+            </p>
+
+            <form onSubmit={handleCheckin} className="mt-6 space-y-4">
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase">Seu Nome *</label>
+                <input
+                  required
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Ex: João da Silva"
+                  className="w-full mt-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-[#8B261E] outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase flex justify-between">
+                  <span>CPF</span>
+                  <span className="text-gray-400 font-normal">Opcional</span>
+                </label>
+                <input
+                  value={cpf}
+                  maxLength={14}
+                  onChange={(e) => setCpf(maskCPF(e.target.value))}
+                  placeholder="000.000.000-00"
+                  className="w-full mt-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-[#8B261E] outline-none"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-600 uppercase flex justify-between">
+                  <span>WhatsApp</span>
+                  <span className="text-gray-400 font-normal">Opcional</span>
+                </label>
+                <input
+                  value={whatsapp}
+                  maxLength={15}
+                  onChange={(e) => setWhatsapp(maskPhone(e.target.value))}
+                  placeholder="(11) 90000-0000"
+                  className="w-full mt-1 px-4 py-2.5 rounded-lg border border-gray-300 text-sm focus:ring-2 focus:ring-[#8B261E] outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                className="w-full bg-[#8B261E] hover:bg-[#721f18] text-white font-bold py-3 rounded-xl shadow-lg transition text-sm uppercase tracking-wide mt-2"
+              >
+                Acessar Cardápio
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       <header className="bg-white border-b border-[#EADBCE] sticky top-0 z-30 px-4 py-3 flex justify-between items-center shadow-sm">
         <div>
           <h2 className="font-serif font-black text-lg text-[#8B261E]">JÃO KIM</h2>
-          <span className="text-[11px] font-bold text-gray-500">Mesa {mesaNumero} • Olá, {cliente.nome.split(' ')[0]}</span>
+          <span className="text-[11px] font-bold text-gray-500">Mesa {mesaNumero} {cliente ? `• Olá, ${cliente.nome.split(' ')[0]}` : ''}</span>
         </div>
         {pedidoEnviado && (
           <div className="bg-emerald-600 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1 font-bold animate-pulse">
@@ -202,7 +205,10 @@ export default function MesaClientePage() {
               </div>
               <button
                 onClick={() => fazerPedido(item)}
-                className="bg-[#8B261E] hover:bg-[#721f18] text-white p-2.5 rounded-xl transition shadow flex items-center justify-center"
+                disabled={!cliente}
+                className={`p-2.5 rounded-xl transition shadow flex items-center justify-center ${
+                  !cliente ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-[#8B261E] hover:bg-[#721f18] text-white'
+                }`}
               >
                 <Plus className="w-5 h-5" />
               </button>
