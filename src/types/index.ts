@@ -1,5 +1,5 @@
 export type DestinoItem = 'cozinha' | 'bar_garcom';
-export type StatusPedido = 'aguardando' | 'em_preparo' | 'pronto' | 'servido' | 'cancelado';
+export type StatusPedido = 'aguardando' | 'em_preparo' | 'pronto' | 'a_caminho' | 'servido' | 'cancelado';
 
 export interface CardapioItem {
   id: string;

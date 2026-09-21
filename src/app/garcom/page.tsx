@@ -15,7 +15,7 @@ export default function GarcomPage() {
   const [incluirTaxa, setIncluirTaxa] = useState(true);
 
   const carregarDados = async () => {
-    // 1. Carrega itens prontos para entregar ou bebidas novas
+    // 1. Carrega itens prontos para entregar, a caminho, ou bebidas novas
     const { data: itensEntrega } = await supabase
       .from('pedidos_itens')
       .select(`
@@ -24,7 +24,7 @@ export default function GarcomPage() {
         cardapio_itens (nome),
         comandas_mesa (mesas (numero))
       `)
-      .or('status.eq.pronto,and(destino.eq.bar_garcom,status.eq.aguardando)')
+      .or('status.eq.pronto,status.eq.a_caminho,and(destino.eq.bar_garcom,status.eq.aguardando)')
       .order('solicitado_em', { ascending: true });
 
     if (itensEntrega) setProntos(itensEntrega);
@@ -76,8 +76,12 @@ export default function GarcomPage() {
     };
   }, [mesaSelecionada]);
 
-  const marcarEntregue = async (id: string) => {
-    await supabase.from('pedidos_itens').update({ status: 'servido', entregue_em: new Date().toISOString() }).eq('id', id);
+  const alterarStatus = async (id: string, status: string) => {
+    const updateData: any = { status };
+    if (status === 'servido') {
+      updateData.entregue_em = new Date().toISOString();
+    }
+    await supabase.from('pedidos_itens').update(updateData).eq('id', id);
   };
 
   // Agrupa pedidos da mesa selecionada
@@ -126,25 +130,39 @@ export default function GarcomPage() {
       {abaAtiva === 'entregas' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {prontos.map((item) => (
-            <div key={item.id} className="bg-zinc-900 border border-emerald-500/40 rounded-xl p-4 flex justify-between items-center">
+            <div key={item.id} className={`border rounded-xl p-4 flex justify-between items-center transition ${item.status === 'a_caminho' ? 'bg-blue-950/30 border-blue-500/40' : 'bg-zinc-900 border-emerald-500/40'}`}>
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-extrabold text-emerald-400 text-lg">MESA {item.comandas_mesa?.mesas?.numero || '??'}</span>
-                  {item.destino === 'bar_garcom' && (
+                  <span className={`font-extrabold text-lg ${item.status === 'a_caminho' ? 'text-blue-400' : 'text-emerald-400'}`}>MESA {item.comandas_mesa?.mesas?.numero || '??'}</span>
+                  {item.destino === 'bar_garcom' && item.status !== 'a_caminho' && (
                     <span className="flex items-center gap-1 text-[10px] bg-blue-950 text-blue-300 px-2 py-0.5 rounded font-bold">
                       <Wine className="w-3 h-3" /> BEBIDA
+                    </span>
+                  )}
+                  {item.status === 'a_caminho' && (
+                    <span className="flex items-center gap-1 text-[10px] bg-blue-600 text-white px-2 py-0.5 rounded font-bold uppercase animate-pulse">
+                      NA BANDEJA
                     </span>
                   )}
                 </div>
                 <p className="text-xs text-zinc-400">Cliente: {item.clientes?.nome}</p>
                 <p className="text-base font-semibold text-white mt-1">{item.quantidade}x {item.cardapio_itens?.nome}</p>
               </div>
-              <button
-                onClick={() => marcarEntregue(item.id)}
-                className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-3 rounded-lg text-xs flex items-center gap-1 transition"
-              >
-                <Check className="w-4 h-4" /> ENTREGAR
-              </button>
+              {item.status === 'a_caminho' ? (
+                <button
+                  onClick={() => alterarStatus(item.id, 'servido')}
+                  className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-4 py-3 rounded-lg text-xs flex items-center gap-1 transition shadow-[0_0_15px_rgba(37,99,235,0.3)]"
+                >
+                  <Check className="w-4 h-4" /> ENTREGUE NA MESA
+                </button>
+              ) : (
+                <button
+                  onClick={() => alterarStatus(item.id, 'a_caminho')}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-3 rounded-lg text-xs flex items-center gap-1 transition"
+                >
+                  RETIRAR DO BALCÃO
+                </button>
+              )}
             </div>
           ))}
           {prontos.length === 0 && (

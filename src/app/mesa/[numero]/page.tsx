@@ -389,7 +389,8 @@ export default function MesaClientePage() {
                     p.status === 'aguardando' ? 'bg-amber-500/20 text-amber-300' :
                     p.status === 'em_preparo' ? 'bg-orange-500/30 text-orange-300' :
                     p.status === 'pronto' ? 'bg-emerald-500/30 text-emerald-300' :
-                    p.status === 'servido' ? 'bg-blue-500/30 text-blue-300' : 'bg-gray-500/30 text-gray-300'
+                    p.status === 'a_caminho' ? 'bg-blue-500/30 text-blue-300 animate-pulse' :
+                    p.status === 'servido' ? 'bg-zinc-500/30 text-zinc-300' : 'bg-gray-500/30 text-gray-300'
                   }`}>
                     {p.status.replace('_', ' ')}
                   </div>
