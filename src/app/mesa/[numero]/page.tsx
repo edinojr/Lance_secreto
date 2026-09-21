@@ -18,7 +18,7 @@ export default function MesaClientePage() {
   const [whatsapp, setWhatsapp] = useState('');
 
   // Estado do Cardápio e Pedido
-  const [categoriaAtiva, setCategoriaAtiva] = useState<'pratos' | 'carnes' | 'bebidas' | 'sobremesas'>('pratos');
+  const [categoriaAtiva, setCategoriaAtiva] = useState<'lanches' | 'pratos' | 'porcoes' | 'bebidas' | 'sobremesas'>('lanches');
   const [itensCardapio, setItensCardapio] = useState<CardapioItem[]>([]);
   const [pedidoEnviado, setPedidoEnviado] = useState(false);
 
@@ -195,13 +195,13 @@ export default function MesaClientePage() {
       </header>
 
       {/* Navegação por Categorias */}
-      <div className="flex justify-around bg-white/80 backdrop-blur border-b border-[#EADBCE] py-2 sticky top-[57px] z-20">
-        {(['pratos', 'carnes', 'bebidas', 'sobremesas'] as const).map((cat) => (
+      <div className="flex overflow-x-auto no-scrollbar gap-2 bg-white/80 backdrop-blur border-b border-[#EADBCE] p-3 sticky top-[57px] z-20">
+        {(['lanches', 'pratos', 'porcoes', 'bebidas', 'sobremesas'] as const).map((cat) => (
           <button
             key={cat}
             onClick={() => setCategoriaAtiva(cat)}
-            className={`text-xs font-bold capitalize px-3 py-1.5 rounded-lg transition ${
-              categoriaAtiva === cat ? 'bg-[#8B261E] text-white shadow' : 'text-gray-600'
+            className={`whitespace-nowrap text-xs font-bold capitalize px-4 py-2 rounded-full transition ${
+              categoriaAtiva === cat ? 'bg-[#8B261E] text-white shadow' : 'bg-gray-100 text-gray-600'
             }`}
           >
             {cat}
@@ -210,27 +210,36 @@ export default function MesaClientePage() {
       </div>
 
       {/* Lista de Itens */}
-      <main className="p-4 space-y-3">
+      <main className="p-4 space-y-4">
         {itensCardapio
           .filter((i) => i.categoria === categoriaAtiva)
           .map((item) => (
-            <div key={item.id} className="bg-white border border-[#EADBCE] rounded-xl p-4 flex justify-between items-center shadow-sm">
-              <div className="flex-1 pr-3">
-                <h3 className="font-bold text-sm text-[#2C1810]">{item.nome}</h3>
-                <p className="text-xs text-gray-500 line-clamp-2 mt-0.5">{item.descricao}</p>
-                <span className="text-sm font-black text-[#8B261E] mt-2 block">
-                  R$ {item.preco.toFixed(2).replace('.', ',')}
-                </span>
+            <div key={item.id} className="bg-white border border-[#EADBCE] rounded-2xl p-4 flex gap-4 items-center shadow-sm">
+              {item.imagem_url && (
+                <img 
+                  src={item.imagem_url} 
+                  alt={item.nome} 
+                  className="w-24 h-24 object-cover rounded-xl shadow-sm"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <h3 className="font-bold text-sm text-[#2C1810] truncate">{item.nome}</h3>
+                <p className="text-xs text-gray-500 line-clamp-2 mt-1 leading-snug">{item.descricao}</p>
+                <div className="flex justify-between items-center mt-3">
+                  <span className="text-sm font-black text-[#8B261E]">
+                    R$ {item.preco.toFixed(2).replace('.', ',')}
+                  </span>
+                  <button
+                    onClick={() => fazerPedido(item)}
+                    disabled={!cliente}
+                    className={`p-2 rounded-lg transition shadow flex items-center justify-center ${
+                      !cliente ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-[#8B261E] hover:bg-[#721f18] text-white'
+                    }`}
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <button
-                onClick={() => fazerPedido(item)}
-                disabled={!cliente}
-                className={`p-2.5 rounded-xl transition shadow flex items-center justify-center ${
-                  !cliente ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-[#8B261E] hover:bg-[#721f18] text-white'
-                }`}
-              >
-                <Plus className="w-5 h-5" />
-              </button>
             </div>
           ))}
       </main>

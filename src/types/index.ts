@@ -3,11 +3,12 @@ export type StatusPedido = 'aguardando' | 'em_preparo' | 'pronto' | 'servido' | 
 
 export interface CardapioItem {
   id: string;
-  categoria: 'pratos' | 'carnes' | 'bebidas' | 'sobremesas';
+  categoria: 'lanches' | 'pratos' | 'porcoes' | 'bebidas' | 'sobremesas';
   nome: string;
   descricao: string;
   preco: number;
   destino: DestinoItem;
+  imagem_url?: string;
 }
 
 export interface PedidoItemComDetalhes {
