@@ -63,14 +63,26 @@ export default function MesaClientePage() {
 
   // Isola a lógica de buscar a comanda para poder reaproveitar
   const buscarOuCriarComanda = async (clienteId: string) => {
-    const { data: mesaData } = await supabase.from('mesas').select('id').eq('numero', parseInt(mesaNumero)).single();
+    // Busca a mesa. Se não existir, não usamos .single() direto para não dar erro 406
+    let { data: mesaData } = await supabase.from('mesas').select('id').eq('numero', parseInt(mesaNumero)).maybeSingle();
+    
+    // Se a mesa não existir no banco, criamos ela automaticamente
+    if (!mesaData) {
+      const { data: novaMesa } = await supabase
+        .from('mesas')
+        .insert({ numero: parseInt(mesaNumero) })
+        .select()
+        .single();
+      mesaData = novaMesa;
+    }
+
     if (mesaData) {
       let { data: comanda } = await supabase
         .from('comandas_mesa')
         .select('id')
         .eq('mesa_id', mesaData.id)
         .eq('status', 'aberta')
-        .single();
+        .maybeSingle();
 
       if (!comanda) {
         const { data: novaComanda } = await supabase
