@@ -34,21 +34,63 @@ export default function MesaClientePage() {
     }
     carregarCardapio();
 
-    // Recupera dados salvos localmente
-    const local = localStorage.getItem('jao_kim_customer');
-    if (local) {
-      const u = JSON.parse(local);
-      setNome(u.nome);
-      setCpf(u.cpf);
-      setWhatsapp(u.whatsapp);
+    // Recupera dados salvos localmente (Lembra o dispositivo do cliente)
+    async function autoCheckin() {
+      const local = localStorage.getItem('jao_kim_customer');
+      if (local) {
+        const u = JSON.parse(local);
+        setNome(u.nome);
+        setCpf(u.cpf || '');
+        setWhatsapp(u.whatsapp || '');
+        
+        // Faz o check-in silencioso para clientes que já escanearam antes
+        if (u.nome) {
+          const { data: clienteData } = await supabase
+            .from('clientes')
+            .upsert({ nome: u.nome, cpf: u.cpf, whatsapp: u.whatsapp }, { onConflict: 'cpf' })
+            .select()
+            .single();
+
+          if (clienteData) {
+            setCliente({ id: clienteData.id, nome: clienteData.nome });
+            buscarOuCriarComanda(clienteData.id);
+          }
+        }
+      }
     }
+    autoCheckin();
   }, []);
 
-  // Processo de Check-in
+  // Isola a lógica de buscar a comanda para poder reaproveitar
+  const buscarOuCriarComanda = async (clienteId: string) => {
+    const { data: mesaData } = await supabase.from('mesas').select('id').eq('numero', parseInt(mesaNumero)).single();
+    if (mesaData) {
+      let { data: comanda } = await supabase
+        .from('comandas_mesa')
+        .select('id')
+        .eq('mesa_id', mesaData.id)
+        .eq('status', 'aberta')
+        .single();
+
+      if (!comanda) {
+        const { data: novaComanda } = await supabase
+          .from('comandas_mesa')
+          .insert({
+            mesa_id: mesaData.id,
+            restaurante_id: 'a0000000-0000-0000-0000-000000000001'
+          })
+          .select()
+          .single();
+        comanda = novaComanda;
+      }
+      if (comanda) setComandaId(comanda.id);
+    }
+  };
+
+  // Processo de Check-in Manual
   const handleCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // 1. Cadastra ou busca cliente existente
     const { data: clienteData } = await supabase
       .from('clientes')
       .upsert({ nome, cpf, whatsapp }, { onConflict: 'cpf' })
@@ -58,30 +100,7 @@ export default function MesaClientePage() {
     if (clienteData) {
       setCliente({ id: clienteData.id, nome: clienteData.nome });
       localStorage.setItem('jao_kim_customer', JSON.stringify({ nome, cpf, whatsapp }));
-
-      // 2. Busca comanda ativa da mesa
-      const { data: mesaData } = await supabase.from('mesas').select('id').eq('numero', parseInt(mesaNumero)).single();
-      if (mesaData) {
-        let { data: comanda } = await supabase
-          .from('comandas_mesa')
-          .select('id')
-          .eq('mesa_id', mesaData.id)
-          .eq('status', 'aberta')
-          .single();
-
-        if (!comanda) {
-          const { data: novaComanda } = await supabase
-            .from('comandas_mesa')
-            .insert({
-              mesa_id: mesaData.id,
-              restaurante_id: 'a0000000-0000-0000-0000-000000000001' // ID registrado no script SQL inicial
-            })
-            .select()
-            .single();
-          comanda = novaComanda;
-        }
-        if (comanda) setComandaId(comanda.id);
-      }
+      buscarOuCriarComanda(clienteData.id);
     }
   };
 
