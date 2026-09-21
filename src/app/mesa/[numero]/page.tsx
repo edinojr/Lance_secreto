@@ -27,6 +27,13 @@ export default function MesaClientePage() {
   const [itemSelecionado, setItemSelecionado] = useState<CardapioItem | null>(null);
   const [observacaoItem, setObservacaoItem] = useState('');
   const [adicionaisSelecionados, setAdicionaisSelecionados] = useState<{ [nome: string]: number }>({});
+  const [agora, setAgora] = useState(Date.now());
+
+  // Atualiza relógio
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 60000);
+    return () => clearInterval(t);
+  }, []);
   
   const ADICIONAIS_POR_CATEGORIA: Record<string, { nome: string; preco: number }[]> = {
     lanches: [
@@ -357,21 +364,25 @@ export default function MesaClientePage() {
             </div>
           </div>
           <div className="space-y-2 max-h-32 overflow-y-auto px-4 py-3 no-scrollbar">
-            {meusPedidos.map(p => (
-              <div key={p.id} className="flex justify-between items-center text-xs bg-white/10 p-2 rounded-lg">
-                <div className="flex-1 truncate pr-2">
-                  <span className="font-bold text-amber-400">{p.quantidade}x</span> {p.cardapio_itens?.nome}
+            {meusPedidos.map(p => {
+              const minutos = Math.floor((agora - new Date(p.solicitado_em).getTime()) / 60000);
+              return (
+                <div key={p.id} className="flex justify-between items-center text-xs bg-white/10 p-2 rounded-lg">
+                  <div className="flex-1 truncate pr-2">
+                    <span className="font-bold text-amber-400">{p.quantidade}x</span> {p.cardapio_itens?.nome}
+                    <div className="text-[9px] text-white/50 mt-0.5">Pedido há {minutos} min</div>
+                  </div>
+                  <div className={`px-2 py-1 rounded-md font-bold text-[9px] uppercase tracking-wider shrink-0 ${
+                    p.status === 'aguardando' ? 'bg-amber-500/20 text-amber-300' :
+                    p.status === 'em_preparo' ? 'bg-orange-500/30 text-orange-300' :
+                    p.status === 'pronto' ? 'bg-emerald-500/30 text-emerald-300' :
+                    p.status === 'servido' ? 'bg-blue-500/30 text-blue-300' : 'bg-gray-500/30 text-gray-300'
+                  }`}>
+                    {p.status.replace('_', ' ')}
+                  </div>
                 </div>
-                <div className={`px-2 py-1 rounded-md font-bold text-[9px] uppercase tracking-wider ${
-                  p.status === 'aguardando' ? 'bg-amber-500/20 text-amber-300' :
-                  p.status === 'em_preparo' ? 'bg-orange-500/30 text-orange-300' :
-                  p.status === 'pronto' ? 'bg-emerald-500/30 text-emerald-300' :
-                  p.status === 'servido' ? 'bg-blue-500/30 text-blue-300' : 'bg-gray-500/30 text-gray-300'
-                }`}>
-                  {p.status.replace('_', ' ')}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
