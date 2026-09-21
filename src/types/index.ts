@@ -9,6 +9,7 @@ export interface CardapioItem {
   preco: number;
   destino: DestinoItem;
   imagem_url?: string;
+  ativo: boolean;
 }
 
 export interface PedidoItemComDetalhes {
