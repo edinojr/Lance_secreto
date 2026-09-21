@@ -338,6 +338,11 @@ export default function MesaClientePage() {
         </div>
       )}
 
+      {/* Banner de Taxa de Serviço */}
+      <div className="bg-[#2C1810] text-amber-200 text-center py-2 px-4 text-xs font-bold tracking-widest uppercase">
+        Taxa de Serviço de 10% (Opcional)
+      </div>
+
       <header className="bg-white border-b border-[#EADBCE] sticky top-0 z-30 px-4 py-3 flex justify-between items-center shadow-sm">
         <div>
           <h2 className="font-serif font-black text-lg text-[#8B261E]">JÃO KIM</h2>
