@@ -79,8 +79,18 @@ export default function MesaClientePage() {
 
     const canal = supabase
       .channel(`cliente-pedidos-${comandaId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_itens', filter: `comanda_mesa_id=eq.${comandaId}` }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos_itens', filter: `comanda_mesa_id=eq.${comandaId}` }, (payload) => {
         carregarPedidos();
+        
+        // Disparar notificação se o status foi atualizado
+        if (payload.eventType === 'UPDATE' && 'Notification' in window && Notification.permission === 'granted') {
+          const novoStatus = payload.new.status;
+          if (novoStatus === 'em_preparo') {
+            new Notification('O chef está preparando! 🔥', { body: 'Seu pedido já começou a ser feito na cozinha.' });
+          } else if (novoStatus === 'pronto') {
+            new Notification('Pedido Pronto! 😋', { body: 'Seu pedido está pronto e o garçom já vai levar na mesa.' });
+          }
+        }
       })
       .subscribe();
 
@@ -130,6 +140,11 @@ export default function MesaClientePage() {
   // Processo de Check-in Manual
   const handleCheckin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Solicita permissão para enviar notificações no celular do cliente
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
 
     const { data: clienteData } = await supabase
       .from('clientes')
