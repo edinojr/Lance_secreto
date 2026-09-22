@@ -202,24 +202,7 @@ export default function MesaClientePage() {
 
     const observacaoFinal = [strAdicionais, observacaoItem ? `Obs: ${observacaoItem}` : ''].filter(Boolean).join(' | ');
 
-    let destinoFinal = itemSelecionado.destino;
-    if (itemSelecionado.categoria === 'sobremesas') {
-      destinoFinal = 'bar_garcom';
-    } else if (itemSelecionado.categoria === 'bebidas') {
-      const nomeBebida = itemSelecionado.nome.toLowerCase();
-      
-      const prontas = ['cerveja', 'refrigerante', 'coca', 'pepsi', 'guaraná', 'guarana', 'fanta', 'sprite', 'lata', 'água', 'agua', 'h2o', 'garrafa', 'long neck', 'ice', 'red bull', 'energético', 'energetico'];
-      const preparadas = ['suco', 'drink', 'vitamina', 'caipirinha', 'caipiroska', 'batida', 'coquetel', 'limonada', 'jarra'];
-      const ehProntaEspecial = nomeBebida.includes('suco lata') || nomeBebida.includes('suco em lata') || nomeBebida.includes('del valle');
-
-      if (ehProntaEspecial || prontas.some(p => nomeBebida.includes(p))) {
-        destinoFinal = 'bar_garcom';
-      } else if (preparadas.some(p => nomeBebida.includes(p))) {
-        destinoFinal = 'cozinha';
-      } else {
-        destinoFinal = 'bar_garcom'; // Default para outras bebidas
-      }
-    }
+    const destinoFinal = itemSelecionado.destino;
 
     await supabase.from('pedidos_itens').insert({
       comanda_mesa_id: comandaId,
