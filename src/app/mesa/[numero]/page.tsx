@@ -88,10 +88,15 @@ export default function MesaClientePage() {
         setNome(u.nome);
         setCpf(u.cpf || '');
         setWhatsapp(u.whatsapp || '');
-        if (u.nome) {
+        
+        if (u.id) {
+          setCliente({ id: u.id, nome: u.nome });
+          buscarOuCriarComanda(u.id);
+        } else if (u.cpf) {
           const { data: clienteData } = await supabase.from('clientes').upsert({ nome: u.nome, cpf: u.cpf, whatsapp: u.whatsapp }, { onConflict: 'cpf' }).select().single();
           if (clienteData) {
             setCliente({ id: clienteData.id, nome: clienteData.nome });
+            localStorage.setItem('jao_kim_customer', JSON.stringify({ id: clienteData.id, nome: u.nome, cpf: u.cpf, whatsapp: u.whatsapp }));
             buscarOuCriarComanda(clienteData.id);
           }
         }
@@ -157,10 +162,21 @@ export default function MesaClientePage() {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
-    const { data: clienteData } = await supabase.from('clientes').upsert({ nome, cpf, whatsapp }, { onConflict: 'cpf' }).select().single();
+    
+    let clienteData = null;
+    const cpfLimpo = cpf.trim();
+    
+    if (cpfLimpo) {
+      const { data } = await supabase.from('clientes').upsert({ nome, cpf: cpfLimpo, whatsapp }, { onConflict: 'cpf' }).select().single();
+      clienteData = data;
+    } else {
+      const { data } = await supabase.from('clientes').insert({ nome, whatsapp }).select().single();
+      clienteData = data;
+    }
+
     if (clienteData) {
       setCliente({ id: clienteData.id, nome: clienteData.nome });
-      localStorage.setItem('jao_kim_customer', JSON.stringify({ nome, cpf, whatsapp }));
+      localStorage.setItem('jao_kim_customer', JSON.stringify({ id: clienteData.id, nome, cpf, whatsapp }));
       buscarOuCriarComanda(clienteData.id);
     }
   };
