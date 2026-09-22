@@ -241,22 +241,38 @@ export default function MesaClientePage() {
     
     const { data } = await supabase
       .from('pedidos_itens')
-      .select('cliente_id, quantidade, preco_unitario')
+      .select('cliente_id, quantidade, preco_unitario, clientes(nome)')
       .eq('comanda_mesa_id', comandaId)
       .eq('pago', false)
       .neq('status', 'cancelado');
 
     if (data) {
-      let totalMesa = 0;
-      let totalIndividual = 0;
-      data.forEach(item => {
+      const consumos: Record<string, { nome: string, total: number }> = {};
+      
+      data.forEach((item: any) => {
+        const cid = item.cliente_id;
+        const cNome = item.clientes?.nome || 'Desconhecido';
         const valorItem = item.quantidade * item.preco_unitario;
-        totalMesa += valorItem;
-        if (item.cliente_id === cliente.id) {
-          totalIndividual += valorItem;
+        
+        if (!consumos[cid]) {
+          consumos[cid] = { nome: cNome, total: 0 };
         }
+        consumos[cid].total += valorItem;
       });
-      setTotaisConta({ individual: totalIndividual, mesa: totalMesa });
+
+      const arrConsumo = Object.keys(consumos).map(k => ({
+        cliente_id: k,
+        nome: consumos[k].nome,
+        total: consumos[k].total
+      }));
+
+      // Garante que o cliente logado esteja na lista, mesmo que o total dele seja 0
+      if (!arrConsumo.find(c => c.cliente_id === cliente.id)) {
+        arrConsumo.unshift({ cliente_id: cliente.id, nome: cliente.nome, total: 0 });
+      }
+
+      setConsumoMesa(arrConsumo);
+      setClientesSelecionadosPagamento([cliente.id]); // Começa selecionando apenas a si mesmo
       setMostrarModalConta(true);
     }
   };
@@ -488,36 +504,100 @@ export default function MesaClientePage() {
       {/* Modal de Pedir Conta */}
       {mostrarModalConta && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden border border-[#EADBCE]">
-            <div className="bg-[#8B261E] py-4 px-6 text-center relative">
+          <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden border border-[#EADBCE] max-h-[90vh] flex flex-col">
+            <div className="bg-[#8B261E] py-4 px-6 text-center relative shrink-0">
               <h2 className="text-lg font-black text-white uppercase tracking-widest flex justify-center items-center gap-2">
                 <Receipt className="w-5 h-5"/> Fechar Conta
               </h2>
             </div>
             
-            <div className="p-6 space-y-4">
-               <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 flex flex-col items-center shadow-sm">
-                 <span className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-1">Meu Consumo (Individual)</span>
-                 <span className="text-3xl font-black text-[#8B261E]">R$ {totaisConta.individual.toFixed(2).replace('.', ',')}</span>
-                 <span className="text-[11px] font-bold text-zinc-400 mt-1 uppercase tracking-wider">Com taxa (10%): R$ {(totaisConta.individual * 1.1).toFixed(2).replace('.', ',')}</span>
+            <div className="p-6 overflow-y-auto space-y-4">
+               <p className="text-xs text-center text-zinc-500 font-bold mb-2">
+                 Selecione de quem você deseja pagar a conta:
+               </p>
+
+               <div className="space-y-2">
+                 {consumoMesa.map(c => {
+                    const isEu = c.cliente_id === cliente?.id;
+                    const isSelecionado = clientesSelecionadosPagamento.includes(c.cliente_id);
+                    return (
+                      <label key={c.cliente_id} className={`flex items-center justify-between p-3 rounded-xl border transition cursor-pointer ${isSelecionado ? 'bg-emerald-50 border-emerald-500' : 'bg-zinc-50 border-zinc-200'}`}>
+                        <div className="flex items-center gap-3">
+                          <input 
+                            type="checkbox" 
+                            className="w-5 h-5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
+                            checked={isSelecionado}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setClientesSelecionadosPagamento(prev => [...prev, c.cliente_id]);
+                              } else {
+                                setClientesSelecionadosPagamento(prev => prev.filter(id => id !== c.cliente_id));
+                              }
+                            }}
+                          />
+                          <div className="flex flex-col">
+                            <span className={`font-bold text-sm ${isSelecionado ? 'text-emerald-800' : 'text-zinc-700'}`}>
+                              {isEu ? 'Meu Consumo' : c.nome}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="text-right flex flex-col">
+                           <span className={`font-black ${isSelecionado ? 'text-emerald-700' : 'text-zinc-500'}`}>
+                             R$ {c.total.toFixed(2).replace('.', ',')}
+                           </span>
+                        </div>
+                      </label>
+                    )
+                 })}
                </div>
                
-               <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 flex flex-col items-center shadow-sm">
-                 <span className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-1">Total da Mesa Completa</span>
-                 <span className="text-3xl font-black text-zinc-800">R$ {totaisConta.mesa.toFixed(2).replace('.', ',')}</span>
-                 <span className="text-[11px] font-bold text-zinc-400 mt-1 uppercase tracking-wider">Com taxa (10%): R$ {(totaisConta.mesa * 1.1).toFixed(2).replace('.', ',')}</span>
-               </div>
+               {(() => {
+                  const totalSelecionado = consumoMesa
+                    .filter(c => clientesSelecionadosPagamento.includes(c.cliente_id))
+                    .reduce((acc, curr) => acc + curr.total, 0);
+                  const totalMesaCompleta = consumoMesa.reduce((acc, curr) => acc + curr.total, 0);
+
+                  return (
+                    <div className="mt-4 pt-4 border-t border-zinc-200">
+                      <div className="flex justify-between items-end mb-2">
+                        <span className="text-sm font-bold text-zinc-500">Total Selecionado:</span>
+                        <div className="text-right">
+                          <span className="text-3xl font-black text-[#8B261E]">R$ {totalSelecionado.toFixed(2).replace('.', ',')}</span>
+                          <div className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider">
+                            Com taxa (10%): R$ {(totalSelecionado * 1.1).toFixed(2).replace('.', ',')}
+                          </div>
+                        </div>
+                      </div>
+                      {clientesSelecionadosPagamento.length !== consumoMesa.length && (
+                        <div className="text-[10px] text-right text-zinc-400 font-bold">
+                          Ainda faltarão R$ {(totalMesaCompleta - totalSelecionado).toFixed(2).replace('.', ',')} da mesa.
+                        </div>
+                      )}
+                    </div>
+                  );
+               })()}
 
               <p className="text-xs text-center text-zinc-500 mt-4 font-bold px-4 leading-relaxed">
-                Dirija-se ao caixa ou chame o garçom para efetuar o pagamento informando a sua mesa.
+                Dirija-se ao caixa ou chame o garçom para efetuar o pagamento.
               </p>
 
-              <button
-                onClick={() => setMostrarModalConta(false)}
-                className="mt-2 w-full bg-zinc-200 hover:bg-zinc-300 text-zinc-700 font-black py-3.5 rounded-xl uppercase tracking-widest transition"
-              >
-                Voltar
-              </button>
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => setMostrarModalConta(false)}
+                  className="w-1/3 bg-zinc-200 hover:bg-zinc-300 text-zinc-700 font-black py-3 rounded-xl uppercase tracking-widest transition text-xs"
+                >
+                  Voltar
+                </button>
+                <button
+                  className="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl uppercase tracking-widest transition text-xs shadow-lg"
+                  onClick={() => {
+                     alert("Por enquanto, informe ao garçom de quem você está pagando a conta. Em breve o pagamento poderá ser feito por aqui!");
+                     setMostrarModalConta(false);
+                  }}
+                >
+                  Pagar Agora
+                </button>
+              </div>
             </div>
           </div>
         </div>
