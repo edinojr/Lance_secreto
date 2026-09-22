@@ -17,16 +17,34 @@ export default function CozinhaPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // Aviso na tela a cada 1 minuto se houver pedidos aguardando
+  const alertaRef = React.useRef({ id: '', minuto: -1 });
+
+  // Alerta baseado no tempo de espera do pedido mais antigo
   useEffect(() => {
-    const alertaTimer = setInterval(() => {
-      if (pedidos.some(p => p.status === 'aguardando')) {
+    const pedidosAguardando = pedidos.filter(p => p.status === 'aguardando');
+    if (pedidosAguardando.length === 0) {
+      alertaRef.current = { id: '', minuto: -1 };
+      return;
+    }
+
+    const maisAntigo = pedidosAguardando[0];
+    const msPassados = agora - new Date(maisAntigo.solicitado_em).getTime();
+    const minutosPassados = Math.floor(msPassados / 60000);
+
+    if (minutosPassados > 0) {
+      if (alertaRef.current.id !== maisAntigo.id) {
+        // Pedido mudou, registra o minuto atual para só apitar no próximo minuto
+        alertaRef.current = { id: maisAntigo.id, minuto: minutosPassados };
+      } else if (alertaRef.current.minuto !== minutosPassados) {
+        // Mesmo pedido, mas o minuto virou
         setAvisoAtraso(true);
         setTimeout(() => setAvisoAtraso(false), 5000); // Some após 5s
+        alertaRef.current = { id: maisAntigo.id, minuto: minutosPassados };
       }
-    }, 60000);
-    return () => clearInterval(alertaTimer);
-  }, [pedidos]);
+    } else {
+      alertaRef.current = { id: maisAntigo.id, minuto: 0 };
+    }
+  }, [agora, pedidos]);
 
   const carregarPedidos = async () => {
     const { data } = await supabase

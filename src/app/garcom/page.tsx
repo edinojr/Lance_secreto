@@ -84,6 +84,38 @@ export default function GarcomPage() {
     await supabase.from('pedidos_itens').update(updateData).eq('id', id);
   };
 
+  const fecharContaMesa = async () => {
+    if (!mesaSelecionada) return;
+    if (!confirm(`Deseja realmente confirmar o pagamento e fechar a mesa ${mesaSelecionada}?`)) return;
+
+    const { data: mesas } = await supabase.from('mesas').select('id').eq('numero', mesaSelecionada);
+    if (mesas && mesas.length > 0) {
+      const mesaIds = mesas.map((m: any) => m.id);
+      const { data: comandas } = await supabase.from('comandas_mesa').select('id').in('mesa_id', mesaIds).eq('status', 'aberta');
+      if (comandas && comandas.length > 0) {
+        for (const c of comandas) {
+          await supabase.from('pedidos_itens').update({ pago: true }).eq('comanda_mesa_id', c.id);
+          await supabase.from('comandas_mesa').update({ status: 'fechada' }).eq('id', c.id);
+        }
+      }
+    }
+
+    setMesaSelecionada(null);
+    carregarDados();
+  };
+
+  const marcarClienteComoPago = async (nomeCliente: string) => {
+    if (!confirm(`Confirmar o pagamento antecipado de ${nomeCliente}?`)) return;
+    
+    const itensCliente = pedidosMesaSelecionada.filter(p => (p.clientes?.nome || 'Anônimo') === nomeCliente);
+    const ids = itensCliente.map(p => p.id);
+
+    await supabase.from('pedidos_itens').update({ pago: true }).in('id', ids);
+    if (mesaSelecionada) {
+      carregarContaMesa(mesaSelecionada);
+    }
+  };
+
   // Agrupa pedidos da mesa selecionada
   const clientesMap = pedidosMesaSelecionada.reduce((acc: any, ped) => {
     const nome = ped.clientes?.nome || 'Anônimo';
@@ -224,9 +256,17 @@ export default function GarcomPage() {
                       </div>
                     ))}
                     {!c.pago && (
-                      <div className="flex justify-between text-zinc-400 text-[11px] pl-2 pt-1 border-t border-zinc-200 mt-1">
-                        <span>Taxa de Serviço (10%):</span>
-                        <span>R$ {(c.subtotal * 0.1).toFixed(2)}</span>
+                      <div className="flex flex-col gap-2 pt-2 border-t border-zinc-200 mt-2">
+                        <div className="flex justify-between text-zinc-400 text-[11px] pl-2">
+                          <span>Taxa de Serviço (10%):</span>
+                          <span>R$ {(c.subtotal * 0.1).toFixed(2)}</span>
+                        </div>
+                        <button 
+                          onClick={() => marcarClienteComoPago(c.nome)}
+                          className="self-end bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition"
+                        >
+                          Receber R$ {(c.subtotal * (incluirTaxa ? 1.1 : 1)).toFixed(2)}
+                        </button>
                       </div>
                     )}
                   </div>
@@ -255,6 +295,13 @@ export default function GarcomPage() {
                 <span>TOTAL A PAGAR:</span>
                 <span className="text-[#8B261E]">R$ {totalMesaPagar.toFixed(2)}</span>
               </div>
+              <button
+                onClick={fecharContaMesa}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-4 mt-6 rounded-lg uppercase tracking-widest transition flex justify-center items-center gap-2 shadow-lg"
+              >
+                <Check className="w-5 h-5" />
+                Finalizar Venda
+              </button>
             </div>
           </div>
         )

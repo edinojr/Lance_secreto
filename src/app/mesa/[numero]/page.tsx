@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { CardapioItem } from '@/types';
-import { Utensils, Beer, IceCream, Plus, ShoppingBag, Check } from 'lucide-react';
+import { Utensils, Beer, IceCream, Plus, ShoppingBag, Check, Trash2, Minus } from 'lucide-react';
 
 export default function MesaClientePage() {
   const params = useParams();
@@ -185,13 +185,20 @@ export default function MesaClientePage() {
 
     const observacaoFinal = [strAdicionais, observacaoItem ? `Obs: ${observacaoItem}` : ''].filter(Boolean).join(' | ');
 
+    let destinoFinal = itemSelecionado.destino;
+    if (itemSelecionado.categoria === 'sobremesas') {
+      destinoFinal = 'bar_garcom';
+    } else if (itemSelecionado.categoria === 'bebidas') {
+      destinoFinal = 'cozinha';
+    }
+
     await supabase.from('pedidos_itens').insert({
       comanda_mesa_id: comandaId,
       cliente_id: cliente.id,
       cardapio_item_id: itemSelecionado.id,
       quantidade: 1,
       preco_unitario: calcularTotalItem(), // Preço base + opcionais
-      destino: itemSelecionado.destino,
+      destino: destinoFinal,
       status: 'aguardando',
       observacoes: observacaoFinal || null
     });
@@ -199,6 +206,18 @@ export default function MesaClientePage() {
     fecharConfigurador();
     setPedidoEnviado(true);
     setTimeout(() => setPedidoEnviado(false), 2500);
+  };
+
+  const cancelarPedido = async (id: string) => {
+    if (confirm('Tem certeza que deseja cancelar este pedido?')) {
+      await supabase.from('pedidos_itens').update({ status: 'cancelado' }).eq('id', id);
+    }
+  };
+
+  const alterarQuantidadePedido = async (id: string, qtdAtual: number, delta: number) => {
+    const novaQtd = qtdAtual + delta;
+    if (novaQtd < 1) return;
+    await supabase.from('pedidos_itens').update({ quantidade: novaQtd }).eq('id', id);
   };
 
   return (
@@ -380,20 +399,35 @@ export default function MesaClientePage() {
               const secs = segundosTotais % 60;
               const tempoFormat = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
               return (
-                <div key={p.id} className="flex justify-between items-center text-xs bg-white/10 p-2 rounded-lg">
-                  <div className="flex-1 truncate pr-2">
-                    <span className="font-bold text-amber-400">{p.quantidade}x</span> {p.cardapio_itens?.nome}
-                    <div className="text-[10px] font-mono text-amber-200 mt-0.5 tracking-wider">⏱ {tempoFormat}</div>
+                <div key={p.id} className="flex flex-col gap-2 bg-white/10 p-2 rounded-lg text-xs">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 pr-2">
+                      <span className="font-bold text-amber-400">{p.quantidade}x</span> {p.cardapio_itens?.nome}
+                      <div className="text-[10px] font-mono text-amber-200 mt-0.5 tracking-wider">⏱ {tempoFormat}</div>
+                    </div>
+                    <div className={`px-2 py-1 rounded-md font-bold text-[9px] uppercase tracking-wider shrink-0 ${
+                      p.status === 'aguardando' ? 'bg-amber-500/20 text-amber-300' :
+                      p.status === 'em_preparo' ? 'bg-orange-500/30 text-orange-300' :
+                      p.status === 'pronto' ? 'bg-emerald-500/30 text-emerald-300' :
+                      p.status === 'a_caminho' ? 'bg-blue-500/30 text-blue-300 animate-pulse' :
+                      p.status === 'servido' ? 'bg-zinc-500/30 text-zinc-300' : 'bg-gray-500/30 text-gray-300'
+                    }`}>
+                      {p.status.replace('_', ' ')}
+                    </div>
                   </div>
-                  <div className={`px-2 py-1 rounded-md font-bold text-[9px] uppercase tracking-wider shrink-0 ${
-                    p.status === 'aguardando' ? 'bg-amber-500/20 text-amber-300' :
-                    p.status === 'em_preparo' ? 'bg-orange-500/30 text-orange-300' :
-                    p.status === 'pronto' ? 'bg-emerald-500/30 text-emerald-300' :
-                    p.status === 'a_caminho' ? 'bg-blue-500/30 text-blue-300 animate-pulse' :
-                    p.status === 'servido' ? 'bg-zinc-500/30 text-zinc-300' : 'bg-gray-500/30 text-gray-300'
-                  }`}>
-                    {p.status.replace('_', ' ')}
-                  </div>
+                  
+                  {p.status === 'aguardando' && (
+                    <div className="flex justify-between items-center border-t border-white/10 pt-2 mt-1">
+                      <div className="flex items-center gap-3 bg-white/5 rounded-md px-2 py-1">
+                        <button onClick={() => alterarQuantidadePedido(p.id, p.quantidade, -1)} disabled={p.quantidade <= 1} className="text-white/70 hover:text-white disabled:opacity-30"><Minus className="w-3 h-3"/></button>
+                        <span className="font-bold w-3 text-center">{p.quantidade}</span>
+                        <button onClick={() => alterarQuantidadePedido(p.id, p.quantidade, 1)} className="text-white/70 hover:text-white"><Plus className="w-3 h-3"/></button>
+                      </div>
+                      <button onClick={() => cancelarPedido(p.id)} className="flex items-center gap-1 text-rose-400 hover:text-rose-300 bg-rose-500/10 px-2 py-1 rounded-md font-bold text-[10px] uppercase">
+                        <Trash2 className="w-3 h-3"/> Cancelar
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
