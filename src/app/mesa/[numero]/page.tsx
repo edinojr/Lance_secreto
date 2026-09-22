@@ -206,7 +206,19 @@ export default function MesaClientePage() {
     if (itemSelecionado.categoria === 'sobremesas') {
       destinoFinal = 'bar_garcom';
     } else if (itemSelecionado.categoria === 'bebidas') {
-      destinoFinal = 'cozinha';
+      const nomeBebida = itemSelecionado.nome.toLowerCase();
+      
+      const prontas = ['cerveja', 'refrigerante', 'coca', 'pepsi', 'guaraná', 'guarana', 'fanta', 'sprite', 'lata', 'água', 'agua', 'h2o', 'garrafa', 'long neck', 'ice', 'red bull', 'energético', 'energetico'];
+      const preparadas = ['suco', 'drink', 'vitamina', 'caipirinha', 'caipiroska', 'batida', 'coquetel', 'limonada', 'jarra'];
+      const ehProntaEspecial = nomeBebida.includes('suco lata') || nomeBebida.includes('suco em lata') || nomeBebida.includes('del valle');
+
+      if (ehProntaEspecial || prontas.some(p => nomeBebida.includes(p))) {
+        destinoFinal = 'bar_garcom';
+      } else if (preparadas.some(p => nomeBebida.includes(p))) {
+        destinoFinal = 'cozinha';
+      } else {
+        destinoFinal = 'bar_garcom'; // Default para outras bebidas
+      }
     }
 
     await supabase.from('pedidos_itens').insert({
