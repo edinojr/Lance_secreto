@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { CardapioItem } from '@/types';
-import { Utensils, Beer, IceCream, Plus, ShoppingBag, Check, Trash2, Minus } from 'lucide-react';
+import { Utensils, Beer, IceCream, Plus, ShoppingBag, Check, Trash2, Minus, Receipt } from 'lucide-react';
 
 export default function MesaClientePage() {
   const params = useParams();
@@ -22,6 +22,10 @@ export default function MesaClientePage() {
   const [itensCardapio, setItensCardapio] = useState<CardapioItem[]>([]);
   const [pedidoEnviado, setPedidoEnviado] = useState(false);
   const [meusPedidos, setMeusPedidos] = useState<any[]>([]);
+  
+  // Modal Pedir Conta
+  const [mostrarModalConta, setMostrarModalConta] = useState(false);
+  const [totaisConta, setTotaisConta] = useState({ individual: 0, mesa: 0 });
 
   // Máscaras de entrada
   const maskCPF = (v: string) => v.replace(/\D/g, '').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d)/, '$1.$2').replace(/(\d{3})(\d{1,2})$/, '$1-$2');
@@ -230,6 +234,31 @@ export default function MesaClientePage() {
     const novaQtd = qtdAtual + delta;
     if (novaQtd < 1) return;
     await supabase.from('pedidos_itens').update({ quantidade: novaQtd }).eq('id', id);
+  };
+
+  const abrirModalConta = async () => {
+    if (!comandaId || !cliente) return;
+    
+    const { data } = await supabase
+      .from('pedidos_itens')
+      .select('cliente_id, quantidade, preco_unitario')
+      .eq('comanda_mesa_id', comandaId)
+      .eq('pago', false)
+      .neq('status', 'cancelado');
+
+    if (data) {
+      let totalMesa = 0;
+      let totalIndividual = 0;
+      data.forEach(item => {
+        const valorItem = item.quantidade * item.preco_unitario;
+        totalMesa += valorItem;
+        if (item.cliente_id === cliente.id) {
+          totalIndividual += valorItem;
+        }
+      });
+      setTotaisConta({ individual: totalIndividual, mesa: totalMesa });
+      setMostrarModalConta(true);
+    }
   };
 
   return (
@@ -444,6 +473,52 @@ export default function MesaClientePage() {
                 </div>
               );
             })}
+          </div>
+          <div className="px-4 py-3 border-t border-white/10 bg-black/20">
+            <button 
+              onClick={abrirModalConta} 
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 rounded-xl flex items-center justify-center gap-2 uppercase tracking-wider text-sm shadow-lg transition"
+            >
+              <Receipt className="w-5 h-5"/> Pedir Conta
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Pedir Conta */}
+      {mostrarModalConta && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden border border-[#EADBCE]">
+            <div className="bg-[#8B261E] py-4 px-6 text-center relative">
+              <h2 className="text-lg font-black text-white uppercase tracking-widest flex justify-center items-center gap-2">
+                <Receipt className="w-5 h-5"/> Fechar Conta
+              </h2>
+            </div>
+            
+            <div className="p-6 space-y-4">
+               <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 flex flex-col items-center shadow-sm">
+                 <span className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-1">Meu Consumo (Individual)</span>
+                 <span className="text-3xl font-black text-[#8B261E]">R$ {totaisConta.individual.toFixed(2).replace('.', ',')}</span>
+                 <span className="text-[11px] font-bold text-zinc-400 mt-1 uppercase tracking-wider">Com taxa (10%): R$ {(totaisConta.individual * 1.1).toFixed(2).replace('.', ',')}</span>
+               </div>
+               
+               <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-200 flex flex-col items-center shadow-sm">
+                 <span className="text-xs font-black text-zinc-500 uppercase tracking-widest mb-1">Total da Mesa Completa</span>
+                 <span className="text-3xl font-black text-zinc-800">R$ {totaisConta.mesa.toFixed(2).replace('.', ',')}</span>
+                 <span className="text-[11px] font-bold text-zinc-400 mt-1 uppercase tracking-wider">Com taxa (10%): R$ {(totaisConta.mesa * 1.1).toFixed(2).replace('.', ',')}</span>
+               </div>
+
+              <p className="text-xs text-center text-zinc-500 mt-4 font-bold px-4 leading-relaxed">
+                Dirija-se ao caixa ou chame o garçom para efetuar o pagamento informando a sua mesa.
+              </p>
+
+              <button
+                onClick={() => setMostrarModalConta(false)}
+                className="mt-2 w-full bg-zinc-200 hover:bg-zinc-300 text-zinc-700 font-black py-3.5 rounded-xl uppercase tracking-widest transition"
+              >
+                Voltar
+              </button>
+            </div>
           </div>
         </div>
       )}
