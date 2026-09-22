@@ -102,13 +102,14 @@ export default function MesaClientePage() {
 
   // Monitorar Meus Pedidos
   useEffect(() => {
-    if (!comandaId) return;
+    if (!comandaId || !cliente) return;
 
     const carregarPedidos = async () => {
       const { data } = await supabase
         .from('pedidos_itens')
         .select(`id, quantidade, status, preco_unitario, cardapio_itens(nome), clientes(nome)`)
         .eq('comanda_mesa_id', comandaId)
+        .eq('cliente_id', cliente.id)
         .order('solicitado_em', { ascending: false });
       if (data) setMeusPedidos(data);
     };
@@ -133,7 +134,7 @@ export default function MesaClientePage() {
     return () => {
       supabase.removeChannel(canal);
     };
-  }, [comandaId]);
+  }, [comandaId, cliente]);
 
   const buscarOuCriarComanda = async (clienteId: string) => {
     let { data: mesaData } = await supabase.from('mesas').select('id').eq('numero', parseInt(mesaNumero)).maybeSingle();
@@ -375,11 +376,12 @@ export default function MesaClientePage() {
       </header>
 
       {/* Meus Pedidos / Minha Comanda */}
+      {/* Meus Pedidos / Minha Comanda */}
       {cliente && meusPedidos.length > 0 && (
         <div className="bg-[#8B261E] text-white shadow-md flex flex-col">
           <div className="px-4 py-3 flex justify-between items-center border-b border-white/10">
             <div>
-              <h3 className="font-bold text-sm flex items-center gap-1.5 mb-0.5"><ShoppingBag className="w-4 h-4"/> Conta da Mesa</h3>
+              <h3 className="font-bold text-sm flex items-center gap-1.5 mb-0.5"><ShoppingBag className="w-4 h-4"/> Minha Comanda</h3>
               <p className="text-[10px] text-white/70 leading-tight">
                 Subtotal: R$ {meusPedidos.reduce((acc, p) => acc + (p.quantidade * p.preco_unitario), 0).toFixed(2).replace('.', ',')}<br/>
                 <span className="font-bold text-amber-300">+ 10% taxa de serviço (opcional)</span>
@@ -392,61 +394,45 @@ export default function MesaClientePage() {
               </span>
             </div>
           </div>
-          <div className="space-y-4 max-h-48 overflow-y-auto px-4 py-3 no-scrollbar">
-            {Object.values(meusPedidos.reduce((acc: any, ped) => {
-              const n = ped.clientes?.nome || 'Anônimo';
-              if (!acc[n]) acc[n] = { nome: n, itens: [], subtotal: 0 };
-              acc[n].itens.push(ped);
-              acc[n].subtotal += ped.quantidade * ped.preco_unitario;
-              return acc;
-            }, {})).map((c: any, idx: number) => (
-              <div key={idx} className="bg-white/5 rounded-xl overflow-hidden border border-white/10">
-                <div className="bg-black/20 px-3 py-2 flex justify-between items-center text-xs font-bold border-b border-white/10">
-                  <span className="text-amber-200">{c.nome}</span>
-                  <span className="text-white/80">R$ {c.subtotal.toFixed(2).replace('.', ',')}</span>
-                </div>
-                <div className="p-2 space-y-2">
-                  {c.itens.map((p: any) => {
-                    const segundosTotais = Math.floor((agora - new Date(p.solicitado_em).getTime()) / 1000);
-                    const mins = Math.floor(segundosTotais / 60);
-                    const secs = segundosTotais % 60;
-                    const tempoFormat = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-                    return (
-                      <div key={p.id} className="flex flex-col gap-2 bg-white/10 p-2 rounded-lg text-xs">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1 pr-2">
-                            <span className="font-bold text-amber-400">{p.quantidade}x</span> {p.cardapio_itens?.nome}
-                            <div className="text-[10px] font-mono text-amber-200 mt-0.5 tracking-wider">⏱ {tempoFormat}</div>
-                          </div>
-                          <div className={`px-2 py-1 rounded-md font-bold text-[9px] uppercase tracking-wider shrink-0 ${
-                            p.status === 'aguardando' ? 'bg-amber-500/20 text-amber-300' :
-                            p.status === 'em_preparo' ? 'bg-orange-500/30 text-orange-300' :
-                            p.status === 'pronto' ? 'bg-emerald-500/30 text-emerald-300' :
-                            p.status === 'a_caminho' ? 'bg-blue-500/30 text-blue-300 animate-pulse' :
-                            p.status === 'servido' ? 'bg-zinc-500/30 text-zinc-300' : 'bg-gray-500/30 text-gray-300'
-                          }`}>
-                            {p.status.replace('_', ' ')}
-                          </div>
-                        </div>
-                        
-                        {p.status === 'aguardando' && (
-                          <div className="flex justify-between items-center border-t border-white/10 pt-2 mt-1">
-                            <div className="flex items-center gap-3 bg-white/5 rounded-md px-2 py-1">
-                              <button onClick={() => alterarQuantidadePedido(p.id, p.quantidade, -1)} disabled={p.quantidade <= 1} className="text-white/70 hover:text-white disabled:opacity-30"><Minus className="w-3 h-3"/></button>
-                              <span className="font-bold w-3 text-center">{p.quantidade}</span>
-                              <button onClick={() => alterarQuantidadePedido(p.id, p.quantidade, 1)} className="text-white/70 hover:text-white"><Plus className="w-3 h-3"/></button>
-                            </div>
-                            <button onClick={() => cancelarPedido(p.id)} className="flex items-center gap-1 text-rose-400 hover:text-rose-300 bg-rose-500/10 px-2 py-1 rounded-md font-bold text-[10px] uppercase">
-                              <Trash2 className="w-3 h-3"/> Cancelar
-                            </button>
-                          </div>
-                        )}
+          <div className="space-y-2 max-h-32 overflow-y-auto px-4 py-3 no-scrollbar">
+            {meusPedidos.map(p => {
+              const segundosTotais = Math.floor((agora - new Date(p.solicitado_em).getTime()) / 1000);
+              const mins = Math.floor(segundosTotais / 60);
+              const secs = segundosTotais % 60;
+              const tempoFormat = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+              return (
+                <div key={p.id} className="flex flex-col gap-2 bg-white/10 p-2 rounded-lg text-xs">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1 pr-2">
+                      <span className="font-bold text-amber-400">{p.quantidade}x</span> {p.cardapio_itens?.nome}
+                      <div className="text-[10px] font-mono text-amber-200 mt-0.5 tracking-wider">⏱ {tempoFormat}</div>
+                    </div>
+                    <div className={`px-2 py-1 rounded-md font-bold text-[9px] uppercase tracking-wider shrink-0 ${
+                      p.status === 'aguardando' ? 'bg-amber-500/20 text-amber-300' :
+                      p.status === 'em_preparo' ? 'bg-orange-500/30 text-orange-300' :
+                      p.status === 'pronto' ? 'bg-emerald-500/30 text-emerald-300' :
+                      p.status === 'a_caminho' ? 'bg-blue-500/30 text-blue-300 animate-pulse' :
+                      p.status === 'servido' ? 'bg-zinc-500/30 text-zinc-300' : 'bg-gray-500/30 text-gray-300'
+                    }`}>
+                      {p.status.replace('_', ' ')}
+                    </div>
+                  </div>
+                  
+                  {p.status === 'aguardando' && (
+                    <div className="flex justify-between items-center border-t border-white/10 pt-2 mt-1">
+                      <div className="flex items-center gap-3 bg-white/5 rounded-md px-2 py-1">
+                        <button onClick={() => alterarQuantidadePedido(p.id, p.quantidade, -1)} disabled={p.quantidade <= 1} className="text-white/70 hover:text-white disabled:opacity-30"><Minus className="w-3 h-3"/></button>
+                        <span className="font-bold w-3 text-center">{p.quantidade}</span>
+                        <button onClick={() => alterarQuantidadePedido(p.id, p.quantidade, 1)} className="text-white/70 hover:text-white"><Plus className="w-3 h-3"/></button>
                       </div>
-                    );
-                  })}
+                      <button onClick={() => cancelarPedido(p.id)} className="flex items-center gap-1 text-rose-400 hover:text-rose-300 bg-rose-500/10 px-2 py-1 rounded-md font-bold text-[10px] uppercase">
+                        <Trash2 className="w-3 h-3"/> Cancelar
+                      </button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
